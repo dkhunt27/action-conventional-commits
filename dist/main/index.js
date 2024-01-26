@@ -39665,69 +39665,75 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
 
 
 const extractCommits = (context, core) => __awaiter(void 0, void 0, void 0, function* () {
+    core.info(`context.payload.commits: ${JSON.stringify(context.payload.commits, null, 2)}\n`);
+    core.info(`context.payload.pull_request: ${JSON.stringify(context.payload.pull_request, null, 2)}\n`);
     // For "push" events, commits can be found in the "context.payload.commits".
     const pushCommits = Array.isArray(lodash_get_default()(context, "payload.commits"));
     if (pushCommits) {
+        core.info(`detected a "push"; using those commits`);
         return context.payload.commits;
     }
-    core.info(`context: ${JSON.stringify(context, null, 2)}\n`);
-    core.info(`context.payload: ${JSON.stringify(context.payload, null, 2)}\n`);
-    core.info(`context.payload.pull_request: ${JSON.stringify(context.payload.pull_request, null, 2)}\n`);
-    if (core.getInput('use-pr-number') == "true") {
-        // For PRs, we need to get a list of commits via the GH API:
-        const prNumber = lodash_get_default()(context, "payload.pull_request.number");
-        core.info(`PR Number: ${prNumber}`);
-        if (prNumber) {
-            try {
-                if (core.getInput('github-token') === "") {
-                    const errMsg = "github-token is required when USE_PR_NUMBER is true";
-                    core.setFailed(errMsg);
-                    throw new Error(errMsg);
-                }
-                let token = core.getInput('github-token');
-                const github = (0,lib_github.getOctokit)(token).rest;
-                const params = {
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    pull_number: prNumber
-                };
-                const { data } = yield github.pulls.listCommits(params);
-                core.info(`Commits extracted: ${data.length}`);
-                if (Array.isArray(data)) {
-                    return data.map((item) => item.commit);
-                }
-                return [];
-            }
-            catch (_a) {
-                return [];
-            }
-        }
+    const pull_request = lodash_get_default()(context, "payload.pull_request");
+    if (!pull_request) {
+        core.warnMsg("Push or Pull Request not detected; no commits to check");
     }
     else {
-        // For PRs, we need to get a list of commits via the GH API:
-        const prCommitsUrl = lodash_get_default()(context, "payload.pull_request.commits_url");
-        core.info(`PR Url: ${prCommitsUrl}`);
-        if (prCommitsUrl) {
-            try {
-                let requestHeaders = {
-                    "Accept": "application/vnd.github+json",
-                };
-                if (core.getInput('github-token') != "") {
-                    requestHeaders["Authorization"] = "token " + core.getInput('github-token');
+        if (core.getInput('use-pr-number') == "true") {
+            // For PRs, we need to get a list of commits via the GH API:
+            const prNumber = lodash_get_default()(pull_request, "number");
+            core.info(`PR Number: ${prNumber}`);
+            if (prNumber) {
+                try {
+                    if (core.getInput('github-token') === "") {
+                        const errMsg = "github-token is required when USE_PR_NUMBER is true";
+                        core.setFailed(errMsg);
+                        throw new Error(errMsg);
+                    }
+                    let token = core.getInput('github-token');
+                    const github = (0,lib_github.getOctokit)(token).rest;
+                    const params = {
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        pull_number: prNumber
+                    };
+                    const { data } = yield github.pulls.listCommits(params);
+                    core.info(`Commits extracted: ${data.length}`);
+                    if (Array.isArray(data)) {
+                        return data.map((item) => item.commit);
+                    }
+                    return [];
                 }
-                const { body } = yield source_default().get(prCommitsUrl, {
-                    responseType: "json",
-                    headers: requestHeaders,
-                });
-                core.info(`body extracted: ${JSON.stringify(body)}`);
-                core.info(`Commits extracted: ${body === null || body === void 0 ? void 0 : body.length}`);
-                if (Array.isArray(body)) {
-                    return body.map((item) => item.commit);
+                catch (_a) {
+                    return [];
                 }
-                return [];
             }
-            catch (_b) {
-                return [];
+        }
+        else {
+            // For PRs, we need to get a list of commits via the GH API:
+            const prCommitsUrl = lodash_get_default()(pull_request, "commits_url");
+            core.info(`PR Url: ${prCommitsUrl}`);
+            if (prCommitsUrl) {
+                try {
+                    let requestHeaders = {
+                        "Accept": "application/vnd.github+json",
+                    };
+                    if (core.getInput('github-token') != "") {
+                        requestHeaders["Authorization"] = "token " + core.getInput('github-token');
+                    }
+                    const { body } = yield source_default().get(prCommitsUrl, {
+                        responseType: "json",
+                        headers: requestHeaders,
+                    });
+                    core.info(`body extracted: ${JSON.stringify(body)}`);
+                    core.info(`Commits extracted: ${body === null || body === void 0 ? void 0 : body.length}`);
+                    if (Array.isArray(body)) {
+                        return body.map((item) => item.commit);
+                    }
+                    return [];
+                }
+                catch (_b) {
+                    return [];
+                }
             }
         }
     }
