@@ -39670,6 +39670,9 @@ const extractCommits = (context, core) => __awaiter(void 0, void 0, void 0, func
     if (pushCommits) {
         return context.payload.commits;
     }
+    core.info(`context: ${JSON.stringify(context, null, 2)}\n`);
+    core.info(`context.payload: ${JSON.stringify(context.payload, null, 2)}\n`);
+    core.info(`context.payload.pull_request: ${JSON.stringify(context.payload.pull_request, null, 2)}\n`);
     if (core.getInput('use-pr-number') == "true") {
         // For PRs, we need to get a list of commits via the GH API:
         const prNumber = lodash_get_default()(context, "payload.pull_request.number");
