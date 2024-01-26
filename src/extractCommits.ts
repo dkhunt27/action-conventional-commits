@@ -21,6 +21,8 @@ const extractCommits = async (context, core): Promise<Commit[]> => {
             }
             if (core.getInput('GITHUB_TOKEN') != "") {
                 requestHeaders["Authorization"] = "token " + core.getInput('GITHUB_TOKEN')
+            } else if (core.getInput('github_token') != "") {
+                requestHeaders["Authorization"] = "token " + core.getInput('github_token');
             }
             const { body } = await got.get(prCommitsUrl, {
                 responseType: "json",
