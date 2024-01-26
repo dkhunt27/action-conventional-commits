@@ -1,5 +1,6 @@
 import get from "lodash.get";
 import got from "got";
+import { getOctokit } from '@actions/github'
 
 type Commit = {
     message: string;
@@ -12,32 +13,65 @@ const extractCommits = async (context, core): Promise<Commit[]> => {
         return context.payload.commits;
     }
 
-    // For PRs, we need to get a list of commits via the GH API:
-    const prCommitsUrl = get(context, "payload.pull_request.commits_url");
-    if (prCommitsUrl) {
-        try {
-            let requestHeaders = {
-                "Accept": "application/vnd.github+json",
-            }
-            if (core.getInput('GITHUB_TOKEN') != "") {
-                requestHeaders["Authorization"] = "token " + core.getInput('GITHUB_TOKEN')
-            } else if (core.getInput('github_token') != "") {
-                requestHeaders["Authorization"] = "token " + core.getInput('github_token');
-            }
-            const { body } = await got.get(prCommitsUrl, {
-                responseType: "json",
-                headers: requestHeaders,
-            });
+    if (core.getInput('use-pr-number') == "true") {
+        // For PRs, we need to get a list of commits via the GH API:
+        const prNumber = get(context, "payload.pull_request.number");
+        core.info(`PR Number: ${prNumber}`);
+        if (prNumber) {
+            try {
 
-            if (Array.isArray(body)) {
-                return body.map((item) => item.commit);
+                if (core.getInput('github-token') === "") {
+                    const errMsg = "github-token is required when USE_PR_NUMBER is true"
+                    core.setFailed(errMsg);
+                    throw new Error(errMsg)
+                } 
+
+                let token = core.getInput('github-token')
+                const github = getOctokit(token).rest
+                const params = {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    pull_number: prNumber
+                }
+                const { data } = await github.pulls.listCommits(params);
+                core.info(`Commits extracted: ${data.length}`);
+    
+                if (Array.isArray(data)) {
+                    return data.map((item) => item.commit);
+                }
+                return [];
+            } catch {
+                return [];
             }
-            return [];
-        } catch {
-            return [];
+        }
+    } else {
+        // For PRs, we need to get a list of commits via the GH API:
+        const prCommitsUrl = get(context, "payload.pull_request.commits_url");
+        core.info(`PR Url: ${prCommitsUrl}`);
+        if (prCommitsUrl) {
+            try {
+                let requestHeaders = {
+                    "Accept": "application/vnd.github+json",
+                }
+                if (core.getInput('github-token') != "") {
+                    requestHeaders["Authorization"] = "token " + core.getInput('github-token')
+                } 
+                const { body } = await got.get(prCommitsUrl, {
+                    responseType: "json",
+                    headers: requestHeaders,
+                });
+
+                core.info(`body extracted: ${JSON.stringify(body)}`);
+                core.info(`Commits extracted: ${(body as any)?.length}`);
+                if (Array.isArray(body)) {
+                    return body.map((item) => item.commit);
+                }
+                return [];
+            } catch {
+                return [];
+            }
         }
     }
-
     return [];
 };
 

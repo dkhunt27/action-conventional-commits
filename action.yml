@@ -1,9 +1,13 @@
 name: "Conventional Commits (dkhunt27)"
 description: "Ensures that all commit messages are following the conventional-commits standard."
 inputs:
-  GITHUB_TOKEN:
+  github-token:
     description: 'GitHub token'
     required: false
+  use-pr-number:
+    description: 'Use PR Number to extract commits'
+    required: false
+    type: boolean
   allowed-commit-types:
     description: 'Specify a comma separated list of allowed commit types'
     default: 'feat,fix,docs,style,refactor,test,build,perf,ci,chore,revert,merge,wip'
